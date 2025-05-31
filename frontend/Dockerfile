@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install build dependencies for node-gyp
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list || true && \
+    apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \

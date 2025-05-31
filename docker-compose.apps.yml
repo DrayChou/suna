@@ -1,0 +1,289 @@
+version: '3.8'
+
+services:
+  # 沙盒管理服务 - 替代 Daytona
+  sandbox-manager:
+    build:
+      context: ./services/sandbox_manager
+      dockerfile: Dockerfile
+    container_name: suna-sandbox-manager
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SANDBOX_NETWORK: suna-sandbox-network
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-suna/sandbox:latest}
+      MAX_CONTAINERS: ${MAX_SANDBOX_CONTAINERS:-10}
+      CONTAINER_TIMEOUT: ${SANDBOX_TIMEOUT:-3600}
+      REDIS_URL: redis://redis:6379/1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - sandbox_data:/app/data
+    ports:
+      - "8001:8000"
+    networks:
+      - suna-network
+      - suna-sandbox-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 搜索服务 - 替代 Tavily
+  searxng:
+    image: searxng/searxng:latest
+    container_name: suna-searxng
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-your-searxng-secret-key}
+    volumes:
+      - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 爬虫服务 - 替代 Firecrawl
+  crawler-service:
+    build:
+      context: ./services/crawler
+      dockerfile: Dockerfile
+    container_name: suna-crawler
+    environment:
+      REDIS_URL: redis://redis:6379/2
+      MAX_CONCURRENT_CRAWLS: ${MAX_CONCURRENT_CRAWLS:-5}
+      CRAWL_TIMEOUT: ${CRAWL_TIMEOUT:-30}
+      USER_AGENT: ${CRAWLER_USER_AGENT:-Suna-Crawler/1.0}
+    volumes:
+      - crawler_data:/app/data
+    ports:
+      - "8002:8000"
+    networks:
+      - suna-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # WebSocket 实时通信服务
+  realtime-service:
+    build:
+      context: ./services/realtime
+      dockerfile: Dockerfile
+    container_name: suna-realtime
+    environment:
+      REDIS_URL: redis://redis:6379/3
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+    ports:
+      - "8003:8000"
+    networks:
+      - suna-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 后端 API 服务（修改配置以使用开源服务）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suna-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/.env.opensource:/app/.env:ro
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    environment:
+      # 数据库配置
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
+      - POSTGREST_URL=http://postgrest:3000
+      - GOTRUE_URL=http://gotrue:9999
+      
+      # 存储配置
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_BUCKET_SCREENSHOTS=browser-screenshots
+      - MINIO_BUCKET_UPLOADS=user-uploads
+      
+      # Redis 和 RabbitMQ
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=False
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-admin123}
+      
+      # 服务配置
+      - SANDBOX_MANAGER_URL=http://sandbox-manager:8000
+      - SEARCH_SERVICE_URL=http://searxng:8080
+      - CRAWLER_SERVICE_URL=http://crawler-service:8000
+      - REALTIME_SERVICE_URL=http://realtime-service:8000
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      
+      # 日志配置
+      - LOG_LEVEL=INFO
+    networks:
+      - suna-network
+    depends_on:
+      - postgres
+      - postgrest
+      - gotrue
+      - minio
+      - redis
+      - rabbitmq
+      - sandbox-manager
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 后端 Worker 服务
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suna-worker
+    command: python -m dramatiq --processes 4 --threads 4 run_agent_background
+    volumes:
+      - ./backend/.env.opensource:/app/.env:ro
+      - ./backend:/app
+      - ./backend/worker-logs:/app/logs
+    environment:
+      # 使用与 backend 相同的环境变量
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
+      - POSTGREST_URL=http://postgrest:3000
+      - GOTRUE_URL=http://gotrue:9999
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=False
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-admin123}
+      - SANDBOX_MANAGER_URL=http://sandbox-manager:8000
+      - SEARCH_SERVICE_URL=http://searxng:8080
+      - CRAWLER_SERVICE_URL=http://crawler-service:8000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      - LOG_LEVEL=INFO
+    networks:
+      - suna-network
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: suna-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/.env.local.opensource:/app/.env.local:ro
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+      - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
+      - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
+    networks:
+      - suna-network
+    depends_on:
+      - backend
+      - postgrest
+      - gotrue
+      - realtime-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  suna-network:
+    external: true
+  suna-sandbox-network:
+    external: true
+
+volumes:
+  sandbox_data:
+    driver: local
+  crawler_data:
+    driver: local

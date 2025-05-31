@@ -1,0 +1,598 @@
+services:
+  # PostgreSQL 数据库 - 替代 Supabase 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: suna-postgres
+    environment:
+      POSTGRES_DB: suna
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-suna_password}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/supabase/migrations:/docker-entrypoint-initdb.d:ro
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d/init:ro
+    # ports:
+    #   - "5432:5432"  # 用户本地已运行 PostgreSQL
+    networks:
+      - suna-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d suna"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgREST - 自动生成 REST API
+  postgrest:
+    image: postgrest/postgrest:v12.0.2
+    container_name: suna-postgrest
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
+      PGRST_DB_SCHEMAS: public,auth
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      PGRST_APP_SETTINGS_JWT_EXP: 3600
+    ports:
+      - "3001:3000"
+    networks:
+      - suna-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # GoTrue - 用户认证服务
+  gotrue:
+    image: supabase/gotrue:v2.143.0
+    container_name: suna-gotrue
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      GOTRUE_DB_DRIVER: postgres
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna?search_path=auth
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ${GOTRUE_URI_ALLOW_LIST:-http://localhost:3000,http://localhost:8000}
+      GOTRUE_DISABLE_SIGNUP: ${GOTRUE_DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: true
+      GOTRUE_MAILER_AUTOCONFIRM: ${GOTRUE_MAILER_AUTOCONFIRM:-true}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-Suna}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${GOTRUE_MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${GOTRUE_MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${GOTRUE_MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+    ports:
+      - "9999:9999"
+    networks:
+      - suna-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9999/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # MinIO - 对象存储服务
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    container_name: suna-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # MinIO 初始化服务 - 创建存储桶
+  minio-init:
+    image: minio/mc:RELEASE.2024-01-13T08-44-48Z
+    container_name: suna-minio-init
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    networks:
+      - suna-network
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      mc mb minio/browser-screenshots --ignore-existing;
+      mc mb minio/user-uploads --ignore-existing;
+      mc anonymous set public minio/browser-screenshots;
+      mc anonymous set public minio/user-uploads;
+      echo 'MinIO buckets created successfully';
+      "
+    restart: "no"
+
+  # Redis - 缓存服务（保持不变）
+  redis:
+    image: redis:7-alpine
+    container_name: suna-redis
+    # ports:
+    #   - "6379:6379"  # 用户本地已运行 Redis
+    volumes:
+      - redis_data:/data
+      - ./backend/services/docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --save 60 1 --loglevel warning --appendonly yes --bind 0.0.0.0 --protected-mode no --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # RabbitMQ - 消息队列（保持不变）
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: suna-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 沙盒管理服务 - 替代 Daytona
+  sandbox-manager:
+    build:
+      context: ./services/sandbox_manager
+      dockerfile: Dockerfile
+    container_name: suna-sandbox-manager
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SANDBOX_NETWORK: suna-sandbox-network
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-suna/sandbox:latest}
+      MAX_CONTAINERS: ${MAX_SANDBOX_CONTAINERS:-10}
+      CONTAINER_TIMEOUT: ${SANDBOX_TIMEOUT:-3600}
+      REDIS_URL: redis://redis:6379/1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - sandbox_data:/app/data
+    ports:
+      - "8001:8000"
+    networks:
+      - suna-network
+      - suna-sandbox-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 搜索服务 - 替代 Tavily
+  searxng:
+    image: searxng/searxng:latest
+    container_name: suna-searxng
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-your-searxng-secret-key}
+    volumes:
+      - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 爬虫服务 - 替代 Firecrawl
+  crawler-service:
+    build:
+      context: ./services/crawler
+      dockerfile: Dockerfile
+    container_name: suna-crawler
+    environment:
+      REDIS_URL: redis://redis:6379/2
+      MAX_CONCURRENT_CRAWLS: ${MAX_CONCURRENT_CRAWLS:-5}
+      CRAWL_TIMEOUT: ${CRAWL_TIMEOUT:-30}
+      USER_AGENT: ${CRAWLER_USER_AGENT:-Suna-Crawler/1.0}
+    volumes:
+      - crawler_data:/app/data
+    ports:
+      - "8002:8000"
+    networks:
+      - suna-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # WebSocket 实时通信服务
+  realtime-service:
+    build:
+      context: ./services/realtime
+      dockerfile: Dockerfile
+    container_name: suna-realtime
+    environment:
+      REDIS_URL: redis://redis:6379/3
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+    ports:
+      - "8003:8000"
+    networks:
+      - suna-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prometheus - 监控指标收集
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: suna-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./services/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - suna-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Grafana - 监控可视化面板
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: suna-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./services/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3002:3000"
+    networks:
+      - suna-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 后端 API 服务（修改配置以使用开源服务）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suna-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/.env.opensource:/app/.env:ro
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    environment:
+      # 数据库配置
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
+      - POSTGREST_URL=http://postgrest:3000
+      - GOTRUE_URL=http://gotrue:9999
+      
+      # 存储配置
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_BUCKET_SCREENSHOTS=browser-screenshots
+      - MINIO_BUCKET_UPLOADS=user-uploads
+      
+      # Redis 和 RabbitMQ
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=False
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-admin123}
+      
+      # 服务配置
+      - SANDBOX_MANAGER_URL=http://sandbox-manager:8000
+      - SEARCH_SERVICE_URL=http://searxng:8080
+      - CRAWLER_SERVICE_URL=http://crawler-service:8000
+      - REALTIME_SERVICE_URL=http://realtime-service:8000
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      
+      # 日志配置
+      - LOG_LEVEL=INFO
+    networks:
+      - suna-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgrest:
+        condition: service_healthy
+      gotrue:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      sandbox-manager:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 后端 Worker 服务
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: suna-worker
+    command: python -m dramatiq --processes 4 --threads 4 run_agent_background
+    volumes:
+      - ./backend/.env.opensource:/app/.env:ro
+      - ./backend:/app
+      - ./backend/worker-logs:/app/logs
+    environment:
+      # 使用与 backend 相同的环境变量
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
+      - POSTGREST_URL=http://postgrest:3000
+      - GOTRUE_URL=http://gotrue:9999
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=False
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-admin123}
+      - SANDBOX_MANAGER_URL=http://sandbox-manager:8000
+      - SEARCH_SERVICE_URL=http://searxng:8080
+      - CRAWLER_SERVICE_URL=http://crawler-service:8000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      - LOG_LEVEL=INFO
+    networks:
+      - suna-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: suna-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/.env.local.opensource:/app/.env.local:ro
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+      - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
+      - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
+    networks:
+      - suna-network
+    depends_on:
+      - backend
+      - postgrest
+      - gotrue
+      - realtime-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  suna-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  suna-sandbox-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  minio_data:
+    driver: local
+  sandbox_data:
+    driver: local
+  crawler_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

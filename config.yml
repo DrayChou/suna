@@ -1,0 +1,253 @@
+# Suna 开源版本配置文件
+# 用于统一管理所有服务的配置参数
+
+# 应用基本信息
+app:
+  name: "Suna 开源版本"
+  version: "1.0.0"
+  description: "完全开源的AI助手平台"
+  environment: "development"  # development, production
+
+# 网络配置
+network:
+  host: "0.0.0.0"
+  domain: "localhost"
+  use_https: false
+  
+# 端口配置
+ports:
+  frontend: 3001
+  api: 8000
+  postgres: 5432
+  postgrest: 3001
+  gotrue: 9999
+  minio: 9000
+  minio_console: 9001
+  redis: 6379
+  rabbitmq: 5672
+  rabbitmq_management: 15672
+  sandbox_manager: 8001
+  crawler: 8002
+  realtime: 8003
+  searxng: 8080
+  prometheus: 9090
+  grafana: 3000
+
+# 数据库配置
+database:
+  postgres:
+    host: "postgres"
+    port: 5432
+    name: "suna_db"
+    user: "suna_app"
+    password: "suna_password"
+    max_connections: 100
+    pool_size: 20
+    
+  postgrest:
+    db_uri: "postgresql://suna_app:suna_password@postgres:5432/suna_db"
+    db_schema: "public"
+    db_anon_role: "suna_anon"
+    jwt_secret: "your-jwt-secret-key-change-in-production"
+    
+# 认证配置
+auth:
+  gotrue:
+    site_url: "http://localhost:3001"
+    jwt_secret: "your-jwt-secret-key-change-in-production"
+    jwt_exp: 3600
+    jwt_aud: "authenticated"
+    disable_signup: false
+    external_email_disabled: false
+    
+# 存储配置
+storage:
+  minio:
+    endpoint: "minio:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    secure: false
+    region: "us-east-1"
+    buckets:
+      - "suna-uploads"
+      - "suna-avatars"
+      - "suna-documents"
+      
+# 缓存配置
+cache:
+  redis:
+    host: "redis"
+    port: 6379
+    password: "redis_password"
+    db: 0
+    max_connections: 50
+    
+# 消息队列配置
+queue:
+  rabbitmq:
+    host: "rabbitmq"
+    port: 5672
+    user: "guest"
+    password: "guest"
+    vhost: "/"
+    
+# 自定义服务配置
+services:
+  sandbox_manager:
+    host: "sandbox_manager"
+    port: 8001
+    docker_socket: "/var/run/docker.sock"
+    max_containers: 10
+    container_timeout: 3600
+    
+  crawler:
+    host: "crawler"
+    port: 8002
+    max_concurrent: 5
+    timeout: 30
+    user_agent: "Suna-Crawler/1.0"
+    
+  realtime:
+    host: "realtime"
+    port: 8003
+    max_connections: 1000
+    heartbeat_interval: 30
+    
+# 搜索配置
+search:
+  searxng:
+    host: "searxng"
+    port: 8080
+    base_url: "http://searxng:8080"
+    
+# 监控配置
+monitoring:
+  prometheus:
+    host: "prometheus"
+    port: 9090
+    scrape_interval: "15s"
+    
+  grafana:
+    host: "grafana"
+    port: 3000
+    admin_user: "admin"
+    admin_password: "admin"
+    
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_rotation: true
+  max_file_size: "10MB"
+  backup_count: 5
+  
+# 安全配置
+security:
+  cors:
+    allow_origins:
+      - "http://localhost:3001"
+      - "http://127.0.0.1:3001"
+    allow_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    allow_headers:
+      - "*"
+    
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+    
+  encryption:
+    algorithm: "HS256"
+    
+# 功能开关
+features:
+  user_registration: true
+  email_verification: false
+  password_reset: true
+  oauth_providers: []
+  file_upload: true
+  real_time_chat: true
+  code_execution: true
+  web_crawling: true
+  search_integration: true
+  
+# 资源限制
+resources:
+  api:
+    cpu_limit: "1000m"
+    memory_limit: "1Gi"
+    
+  worker:
+    cpu_limit: "500m"
+    memory_limit: "512Mi"
+    
+  postgres:
+    cpu_limit: "500m"
+    memory_limit: "1Gi"
+    
+  redis:
+    cpu_limit: "100m"
+    memory_limit: "256Mi"
+    
+# 开发配置
+development:
+  debug: true
+  auto_reload: true
+  show_sql: false
+  mock_external_services: false
+  
+# 生产配置
+production:
+  debug: false
+  auto_reload: false
+  show_sql: false
+  ssl_required: true
+  
+# 备份配置
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  retention_days: 30
+  storage_path: "/backups"
+  
+# 通知配置
+notifications:
+  email:
+    enabled: false
+    smtp_host: ""
+    smtp_port: 587
+    smtp_user: ""
+    smtp_password: ""
+    
+  webhook:
+    enabled: false
+    url: ""
+    
+# 第三方集成
+integrations:
+  llm_providers:
+    openai:
+      enabled: false
+      api_key: ""
+      base_url: ""
+      
+    anthropic:
+      enabled: false
+      api_key: ""
+      
+    local:
+      enabled: true
+      model_path: "/models"
+      
+  external_apis:
+    weather:
+      enabled: false
+      api_key: ""
+      
+    maps:
+      enabled: false
+      api_key: ""
