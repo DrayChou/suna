@@ -22,7 +22,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set, Any, Union
 
-import aioredis
+import redis.asyncio as aioredis
 import jwt
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware

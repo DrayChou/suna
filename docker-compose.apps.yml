@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 沙盒管理服务 - 替代 Daytona
   sandbox-manager:
@@ -22,8 +20,8 @@ services:
     networks:
       - suna-network
       - suna-sandbox-network
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -80,8 +78,8 @@ services:
       - "8002:8000"
     networks:
       - suna-network
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -109,8 +107,8 @@ services:
       - "8003:8000"
     networks:
       - suna-network
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -133,7 +131,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/.env.opensource:/app/.env:ro
       - ./backend:/app
       - ./backend/logs:/app/logs
     environment:
@@ -141,6 +138,11 @@ services:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna
       - POSTGREST_URL=http://postgrest:3000
       - GOTRUE_URL=http://gotrue:9999
+      
+      # Supabase 兼容配置
+      - SUPABASE_URL=http://postgrest:3000
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOuoJeHxjNy-tHQRX2lJHkEsUVBGWIBpzyU0
+      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
       
       # 存储配置
       - MINIO_ENDPOINT=minio:9000
@@ -159,6 +161,26 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER:-admin}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-admin123}
       
+      # 沙盒服务配置
+      - DAYTONA_API_KEY=dummy_daytona_key_for_opensource
+      - DAYTONA_SERVER_URL=http://sandbox-manager:8000
+      - DAYTONA_TARGET=local
+      
+      # LLM API 配置
+      - ANTHROPIC_API_KEY=dummy_anthropic_key_for_opensource
+      - OPENAI_API_KEY=
+      - GROQ_API_KEY=
+      - OPENROUTER_API_KEY=
+      - OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+      - OR_SITE_URL=https://kortix.ai
+      - OR_APP_NAME=Kortix AI
+      
+      # 搜索和爬虫 API 配置
+      - TAVILY_API_KEY=dummy_tavily_key_for_opensource
+      - RAPID_API_KEY=dummy_rapid_api_key_for_opensource
+      - FIRECRAWL_API_KEY=dummy_firecrawl_key_for_opensource
+      - FIRECRAWL_URL=http://crawler-service:8000
+      
       # 服务配置
       - SANDBOX_MANAGER_URL=http://sandbox-manager:8000
       - SEARCH_SERVICE_URL=http://searxng:8080
@@ -173,12 +195,6 @@ services:
     networks:
       - suna-network
     depends_on:
-      - postgres
-      - postgrest
-      - gotrue
-      - minio
-      - redis
-      - rabbitmq
       - sandbox-manager
     restart: unless-stopped
     healthcheck:
@@ -228,9 +244,6 @@ services:
     networks:
       - suna-network
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
       - backend
     restart: unless-stopped
     logging:
@@ -239,47 +252,47 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # 前端服务
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: suna-frontend
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend/.env.local.opensource:/app/.env.local:ro
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
-      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-      - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
-      - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
-    networks:
-      - suna-network
-    depends_on:
-      - backend
-      - postgrest
-      - gotrue
-      - realtime-service
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # 前端服务 - 暂时注释掉，因为构建失败
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: suna-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend/.env.local.opensource:/app/.env.local:ro
+  #   environment:
+  #     - NODE_ENV=production
+  #     - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
+  #     - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
+  #     - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+  #     - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
+  #     - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
+  #   networks:
+  #     - suna-network
+  #   depends_on:
+  #     - backend
+  #     - realtime-service
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
 networks:
   suna-network:
+    name: suna_suna-network
     external: true
   suna-sandbox-network:
+    name: suna_suna-sandbox-network
     external: true
 
 volumes:

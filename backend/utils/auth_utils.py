@@ -2,7 +2,7 @@ import sentry
 from fastapi import HTTPException, Request
 from typing import Optional
 import jwt
-from jwt.exceptions import PyJWTError
+from jwt.exceptions import InvalidTokenError as PyJWTError
 
 # This function extracts the user ID from Supabase JWT
 async def get_current_user_id_from_jwt(request: Request) -> str:

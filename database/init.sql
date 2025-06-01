@@ -47,6 +47,19 @@ END
 $$;
 
 -- =============================================================================
+-- Schema 创建
+-- =============================================================================
+
+-- 创建 auth schema（用于 GoTrue）
+CREATE SCHEMA IF NOT EXISTS auth;
+
+-- 授予权限
+GRANT USAGE ON SCHEMA auth TO suna_app;
+GRANT USAGE ON SCHEMA auth TO suna_readonly;
+GRANT USAGE ON SCHEMA auth TO suna_api;
+GRANT USAGE ON SCHEMA auth TO suna_anon;
+
+-- =============================================================================
 -- 账户和用户管理表
 -- =============================================================================
 
