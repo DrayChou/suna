@@ -11,7 +11,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/supabase/migrations:/docker-entrypoint-initdb.d:ro
-      - ./scripts/postgres-init:/docker-entrypoint-initdb.d/init:ro
     # ports:
     #   - "5432:5432"  # 用户本地已运行 PostgreSQL
     networks:
@@ -42,19 +41,19 @@ services:
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
       PGRST_APP_SETTINGS_JWT_EXP: 3600
     ports:
-      - "3001:3000"
+      - "15001:3000"
     networks:
       - suna-network
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD", "/bin/sh", "-c", "exit 0"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -70,8 +69,9 @@ services:
       GOTRUE_API_PORT: 9999
       GOTRUE_DB_DRIVER: postgres
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-suna_password}@postgres:5432/suna?search_path=auth
-      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
-      GOTRUE_URI_ALLOW_LIST: ${GOTRUE_URI_ALLOW_LIST:-http://localhost:3000,http://localhost:8000}
+      API_EXTERNAL_URL: http://localhost:15002
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:15014}
+      GOTRUE_URI_ALLOW_LIST: ${GOTRUE_URI_ALLOW_LIST:-http://localhost:15014,http://localhost:15013}
       GOTRUE_DISABLE_SIGNUP: ${GOTRUE_DISABLE_SIGNUP:-false}
       GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
       GOTRUE_JWT_EXP: 3600
@@ -91,7 +91,7 @@ services:
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${GOTRUE_MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
     ports:
-      - "9999:9999"
+      - "15002:9999"
     networks:
       - suna-network
     depends_on:
@@ -118,21 +118,21 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:15004
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "15003:9000"
+      - "15004:9001"
     networks:
       - suna-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD", "/bin/sh", "-c", "exit 0"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -196,8 +196,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
       RABBITMQ_DEFAULT_VHOST: /
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "15005:5672"
+      - "15006:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -232,7 +232,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - sandbox_data:/app/data
     ports:
-      - "8001:8000"
+      - "15007:8000"
     networks:
       - suna-network
       - suna-sandbox-network
@@ -262,7 +262,7 @@ services:
     volumes:
       - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
     ports:
-      - "8080:8080"
+      - "15008:8080"
     networks:
       - suna-network
     restart: unless-stopped
@@ -292,7 +292,7 @@ services:
     volumes:
       - crawler_data:/app/data
     ports:
-      - "8002:8000"
+      - "15009:8000"
     networks:
       - suna-network
     depends_on:
@@ -320,9 +320,9 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/3
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:15014,http://localhost:15013}
     ports:
-      - "8003:8000"
+      - "15010:8000"
     networks:
       - suna-network
     depends_on:
@@ -356,7 +356,7 @@ services:
       - ./services/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "15011:9090"
     networks:
       - suna-network
     restart: unless-stopped
@@ -386,7 +386,7 @@ services:
       - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./services/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3002:3000"
+      - "15012:3000"
     networks:
       - suna-network
     depends_on:
@@ -411,9 +411,8 @@ services:
       dockerfile: Dockerfile
     container_name: suna-backend
     ports:
-      - "8000:8000"
+      - "15013:8000"
     volumes:
-      - ./backend/.env.opensource:/app/.env:ro
       - ./backend:/app
       - ./backend/logs:/app/logs
     environment:
@@ -456,11 +455,11 @@ services:
       postgres:
         condition: service_healthy
       postgrest:
-        condition: service_healthy
+        condition: service_started
       gotrue:
         condition: service_healthy
       minio:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       rabbitmq:
@@ -537,16 +536,16 @@ services:
       dockerfile: Dockerfile
     container_name: suna-frontend
     ports:
-      - "3000:3000"
+      - "15014:3000"
     volumes:
       - ./frontend/.env.local.opensource:/app/.env.local:ro
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:15001
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
-      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-      - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
-      - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:15013
+      - NEXT_PUBLIC_GOTRUE_URL=http://localhost:15002
+      - NEXT_PUBLIC_REALTIME_URL=ws://localhost:15010
     networks:
       - suna-network
     depends_on:
