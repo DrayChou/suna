@@ -195,3 +195,6 @@ supabase/.temp/storage-version
 redis_data
 rabbitmq_data
 backend/logs/*
+
+.lh
+

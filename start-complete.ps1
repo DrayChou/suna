@@ -172,7 +172,7 @@ function Start-FrontendService {
     # 检查前端是否已在运行
     $frontendPort = netstat -an | Select-String ":15014.*LISTENING"
     if ($frontendPort) {
-        Write-Host "检测到3000端口已被占用，前端服务可能已在运行" -ForegroundColor Cyan
+        Write-Host "检测到15014端口已被占用，前端服务可能已在运行" -ForegroundColor Cyan
         $restart = Read-Host "是否重启前端服务? (y/N)"
         if ($restart -eq 'y' -or $restart -eq 'Y') {
             Stop-FrontendService
