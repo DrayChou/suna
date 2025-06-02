@@ -43,7 +43,7 @@ class HealthChecker:
             },
             'MinIO': {
                 'type': 'http',
-                'url': 'http://localhost:9000/minio/health/live',
+                'url': 'http://localhost:15003/minio/health/live',
                 'timeout': 10
             },
             'Redis': {
@@ -54,28 +54,28 @@ class HealthChecker:
             },
             'RabbitMQ': {
                 'type': 'http',
-                'url': 'http://localhost:15672/api/overview',
+                'url': 'http://localhost:15006/api/overview',
                 'timeout': 10,
                 'auth': ('guest', 'guest')
             },
             'API服务': {
                 'type': 'http',
-                'url': 'http://localhost:8000/health',
+                'url': 'http://localhost:15013/health',
                 'timeout': 10
             },
             '沙盒管理': {
                 'type': 'http',
-                'url': 'http://localhost:8001/health',
+                'url': 'http://localhost:15007/health',
                 'timeout': 10
             },
             '爬虫服务': {
                 'type': 'http',
-                'url': 'http://localhost:8002/health',
+                'url': 'http://localhost:15009/health',
                 'timeout': 10
             },
             '实时通信': {
                 'type': 'http',
-                'url': 'http://localhost:8003/health',
+                'url': 'http://localhost:15010/health',
                 'timeout': 10
             },
             'SearXNG': {
@@ -85,12 +85,12 @@ class HealthChecker:
             },
             'Prometheus': {
                 'type': 'http',
-                'url': 'http://localhost:9090/-/healthy',
+                'url': 'http://localhost:15011/-/healthy',
                 'timeout': 10
             },
             'Grafana': {
                 'type': 'http',
-                'url': 'http://localhost:3000/api/health',
+                'url': 'http://localhost:15012/api/health',
                 'timeout': 10
             }
         }

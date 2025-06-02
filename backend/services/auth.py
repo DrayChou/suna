@@ -85,7 +85,7 @@ class AuthConfig:
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
     
     # 应用配置
-    SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
+    SITE_URL = os.getenv('SITE_URL', 'http://localhost:15014')
     CONFIRM_EMAIL_REDIRECT_URL = os.getenv('CONFIRM_EMAIL_REDIRECT_URL', f'{SITE_URL}/auth/confirm')
     RESET_PASSWORD_REDIRECT_URL = os.getenv('RESET_PASSWORD_REDIRECT_URL', f'{SITE_URL}/auth/reset')
 

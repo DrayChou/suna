@@ -43,7 +43,7 @@ class DatabaseConfig:
     POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'suna_password')
     
     # PostgREST 配置
-    POSTGREST_URL = os.getenv('POSTGREST_URL', 'http://localhost:3000')
+    POSTGREST_URL = os.getenv('POSTGREST_URL', 'http://localhost:15001')
     POSTGREST_ANON_KEY = os.getenv('POSTGREST_ANON_KEY', 'anonymous')
     POSTGREST_SERVICE_KEY = os.getenv('POSTGREST_SERVICE_KEY', 'service_role')
     
@@ -778,7 +778,7 @@ async def upload_base64_image(
         
         # 上传到MinIO（这里需要实现MinIO客户端）
         # 暂时返回一个模拟的URL
-        minio_url = os.getenv('MINIO_URL', 'http://localhost:9000')
+        minio_url = os.getenv('MINIO_URL', 'http://localhost:15003')
         public_url = f"{minio_url}/{bucket}/{filename}"
         
         logger.info(f"图片上传成功: {public_url}")

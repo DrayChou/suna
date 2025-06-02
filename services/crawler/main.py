@@ -59,7 +59,7 @@ class Config:
     VIEWPORT_HEIGHT = int(os.getenv('CRAWLER_VIEWPORT_HEIGHT', 1080))
     
     # 安全配置
-    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
+    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:15014,http://localhost:15013').split(',')
     MAX_CONTENT_SIZE = int(os.getenv('MAX_CONTENT_SIZE', 10 * 1024 * 1024))  # 10MB
     
     # 存储配置

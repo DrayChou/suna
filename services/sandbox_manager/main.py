@@ -55,7 +55,7 @@ class Config:
     CPU_LIMIT = float(os.getenv('SANDBOX_CPU_LIMIT', '1.0'))
     
     # 安全配置
-    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
+    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:15014,http://localhost:15013').split(',')
     
     # 工作目录
     WORK_DIR = Path(os.getenv('SANDBOX_WORK_DIR', '/tmp/suna_sandbox'))

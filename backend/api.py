@@ -107,7 +107,7 @@ async def log_requests_middleware(request: Request, call_next):
         raise
 
 # Define allowed origins based on environment
-allowed_origins = ["https://www.suna.so", "https://suna.so", "http://localhost:3000"]
+allowed_origins = ["https://www.suna.so", "https://suna.so", "http://localhost:15014"]
 allow_origin_regex = None
 
 # Add staging-specific origins
@@ -154,11 +154,11 @@ if __name__ == "__main__":
     
     workers = 2
     
-    logger.info(f"Starting server on 0.0.0.0:8000 with {workers} workers")
+    logger.info(f"Starting server on 0.0.0.0:15013 with {workers} workers")
     uvicorn.run(
         "api:app", 
         host="0.0.0.0", 
-        port=8000,
+        port=15013,
         workers=workers,
         # reload=True
     )

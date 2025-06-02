@@ -511,7 +511,7 @@ ENV_MODE=local
         env_content += f"{key}={value}\n"
     
     # Add next public URL at the end
-    env_content += f"NEXT_PUBLIC_URL=http://localhost:3000\n"
+    env_content += f"NEXT_PUBLIC_URL=http://localhost:15014\n"
     
     # Write to file
     with open(env_path, 'w') as f:
@@ -526,13 +526,13 @@ def configure_frontend_env(env_vars, use_docker=True):
     env_path = os.path.join('frontend', '.env.local')
     
     # Use the appropriate backend URL based on start method
-    backend_url = "http://localhost:8000/api"
+    backend_url = "http://localhost:15013/api"
 
     config = {
         'NEXT_PUBLIC_SUPABASE_URL': env_vars['supabase']['SUPABASE_URL'],
         'NEXT_PUBLIC_SUPABASE_ANON_KEY': env_vars['supabase']['SUPABASE_ANON_KEY'],
         'NEXT_PUBLIC_BACKEND_URL': backend_url,
-        'NEXT_PUBLIC_URL': 'http://localhost:3000',
+        'NEXT_PUBLIC_URL': 'http://localhost:15014',
         'NEXT_PUBLIC_ENV_MODE': 'LOCAL',
     }
 
@@ -775,7 +775,7 @@ def final_instructions(use_docker=True, env_vars=None):
     
     if use_docker:
         print_info("Your Suna instance is now running!")
-        print_info("Access it at: http://localhost:3000")
+        print_info("Access it at: http://localhost:15014")
         print_info("Create an account using Supabase authentication to start using Suna")
         print("\nUseful Docker commands:")
         print(f"{Colors.CYAN}  docker compose ps{Colors.ENDC}         - Check the status of Suna services")
@@ -803,7 +803,7 @@ def final_instructions(use_docker=True, env_vars=None):
         print(f"{Colors.CYAN}    cd backend")
         print(f"    poetry run python3.11 -m dramatiq run_agent_background{Colors.ENDC}")
         
-        print_info("4. Once all services are running, access Suna at: http://localhost:3000")
+        print_info("4. Once all services are running, access Suna at: http://localhost:15014")
         print_info("5. Create an account using Supabase authentication to start using Suna")
 
 def main():

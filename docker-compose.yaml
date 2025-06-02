@@ -2,7 +2,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "15015:6379"
     volumes:
       - redis_data:/data
       - ./backend/services/docker/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -16,8 +16,8 @@ services:
   rabbitmq:
     image: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "15005:5672"
+      - "15006:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: unless-stopped
@@ -33,9 +33,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/.env:/app/.env:ro
+      - "15013:8000"
     env_file:
       - ./backend/.env
     environment:
@@ -58,8 +56,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: python -m dramatiq run_agent_background
-    volumes:
-      - ./backend/.env:/app/.env:ro
     env_file:
       - ./backend/.env
     environment:
@@ -81,7 +77,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "15014:3000"
     volumes:
       - ./frontend/.env.local:/app/.env.local:ro
     environment:

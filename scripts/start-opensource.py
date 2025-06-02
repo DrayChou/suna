@@ -229,9 +229,9 @@ class ServiceManager:
             api_env.update({
                 'PORT': '8000',
                 'HOST': '0.0.0.0',
-                'DATABASE_URL': 'postgresql://suna_app:suna_password@localhost:5432/suna_db',
-                'REDIS_URL': 'redis://localhost:6379/0',
-                'MINIO_ENDPOINT': 'localhost:9000',
+                'DATABASE_URL': 'postgresql://suna_app:suna_password@localhost:15004/suna_db',
+        'REDIS_URL': 'redis://localhost:15015/0',
+        'MINIO_ENDPOINT': 'localhost:15003',
                 'GOTRUE_URL': 'http://localhost:9999'
             })
             
@@ -283,8 +283,8 @@ class ServiceManager:
             # 启动前端开发服务器
             frontend_env = os.environ.copy()
             frontend_env.update({
-                'NEXT_PUBLIC_API_URL': 'http://localhost:8000',
-                'NEXT_PUBLIC_WS_URL': 'ws://localhost:8003'
+                'NEXT_PUBLIC_API_URL': 'http://localhost:15013',
+        'NEXT_PUBLIC_WS_URL': 'ws://localhost:15010'
             })
             
             frontend_process = subprocess.Popen(
@@ -314,15 +314,15 @@ class ServiceManager:
         
         # 基础设施服务
         infrastructure_services = [
-            ("PostgreSQL", "运行中", "5432", "localhost:5432"),
+            ("PostgreSQL", "运行中", "15004", "localhost:15004"),
             ("PostgREST", "运行中", "3001", "http://localhost:3001"),
             ("GoTrue", "运行中", "9999", "http://localhost:9999"),
-            ("MinIO", "运行中", "9000", "http://localhost:9000"),
-            ("Redis", "运行中", "6379", "localhost:6379"),
-            ("RabbitMQ", "运行中", "5672", "http://localhost:15672"),
+            ("MinIO", "运行中", "15003", "http://localhost:15003"),
+        ("Redis", "运行中", "15015", "localhost:15015"),
+        ("RabbitMQ", "运行中", "15005", "http://localhost:15006"),
             ("SearXNG", "运行中", "8080", "http://localhost:8080"),
-            ("Prometheus", "运行中", "9090", "http://localhost:9090"),
-            ("Grafana", "运行中", "3000", "http://localhost:3000")
+            ("Prometheus", "运行中", "15011", "http://localhost:15011"),
+        ("Grafana", "运行中", "15012", "http://localhost:15012")
         ]
         
         for service, status, port, url in infrastructure_services:
@@ -330,9 +330,9 @@ class ServiceManager:
         
         # 自定义服务
         custom_services = [
-            ("沙盒管理", "运行中", "8001", "http://localhost:8001"),
-            ("爬虫服务", "运行中", "8002", "http://localhost:8002"),
-            ("实时通信", "运行中", "8003", "ws://localhost:8003")
+            ("沙盒管理", "运行中", "15007", "http://localhost:15007"),
+        ("爬虫服务", "运行中", "15009", "http://localhost:15009"),
+        ("实时通信", "运行中", "15010", "ws://localhost:15010")
         ]
         
         for service, status, port, url in custom_services:
@@ -340,7 +340,7 @@ class ServiceManager:
         
         # 应用服务
         app_services = [
-            ("API服务", "运行中", "8000", "http://localhost:8000"),
+            ("API服务", "运行中", "15013", "http://localhost:15013"),
             ("Worker服务", "运行中", "-", "-"),
             ("前端服务", "运行中", "3001", "http://localhost:3001")
         ]
@@ -353,11 +353,11 @@ class ServiceManager:
         # 显示重要链接
         console.print("\n[bold]重要链接:[/bold]")
         console.print("• 应用主页: [link]http://localhost:3001[/link]")
-        console.print("• API文档: [link]http://localhost:8000/docs[/link]")
-        console.print("• MinIO控制台: [link]http://localhost:9000[/link] (minioadmin/minioadmin)")
-        console.print("• RabbitMQ管理: [link]http://localhost:15672[/link] (guest/guest)")
-        console.print("• Grafana监控: [link]http://localhost:3000[/link] (admin/admin)")
-        console.print("• Prometheus: [link]http://localhost:9090[/link]")
+        console.print("• API文档: [link]http://localhost:15013/docs[/link]")
+        console.print("• MinIO控制台: [link]http://localhost:15003[/link] (minioadmin/minioadmin)")
+        console.print("• RabbitMQ管理: [link]http://localhost:15006[/link] (guest/guest)")
+        console.print("• Grafana监控: [link]http://localhost:15012[/link] (admin/admin)")
+        console.print("• Prometheus: [link]http://localhost:15011[/link]")
     
     def stop_all_services(self):
         """停止所有服务"""

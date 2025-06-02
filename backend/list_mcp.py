@@ -170,7 +170,7 @@ async def test_smithery_registry():
                 print("\n\n3. Testing our API endpoints...")
                 
                 # Test the available-servers endpoint
-                api_url = "http://localhost:8000/api/mcp/available-servers"
+                api_url = "http://localhost:15013/api/mcp/available-servers"
                 print(f"\nTesting: {api_url}")
                 
                 try:
@@ -195,4 +195,4 @@ async def test_smithery_registry():
             print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
-    asyncio.run(test_smithery_registry()) 
+    asyncio.run(test_smithery_registry())

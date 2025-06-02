@@ -16,7 +16,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - sandbox_data:/app/data
     ports:
-      - "8001:8000"
+      - "15007:8000"
     networks:
       - suna-network
       - suna-sandbox-network
@@ -45,7 +45,7 @@ services:
     volumes:
       - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
     ports:
-      - "8080:8080"
+      - "15008:8080"
     networks:
       - suna-network
     restart: unless-stopped
@@ -75,7 +75,7 @@ services:
     volumes:
       - crawler_data:/app/data
     ports:
-      - "8002:8000"
+      - "15009:8000"
     networks:
       - suna-network
     # depends_on:
@@ -102,9 +102,9 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/3
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:15014,http://localhost:15013}
     ports:
-      - "8003:8000"
+      - "15010:8000"
     networks:
       - suna-network
     # depends_on:
@@ -129,7 +129,7 @@ services:
       dockerfile: Dockerfile
     container_name: suna-backend
     ports:
-      - "8000:8000"
+      - "15013:8000"
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
@@ -259,16 +259,16 @@ services:
   #     dockerfile: Dockerfile
   #   container_name: suna-frontend
   #   ports:
-  #     - "3000:3000"
+  #     - "15014:3000"
   #   volumes:
   #     - ./frontend/.env.local.opensource:/app/.env.local:ro
   #   environment:
   #     - NODE_ENV=production
-  #     - NEXT_PUBLIC_SUPABASE_URL=http://localhost:3001
+  #     - NEXT_PUBLIC_SUPABASE_URL=http://localhost:15001
   #     - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.YQf-DuulUveYKJGvn5kx1P7LysQgNr3fIoIBKZwRgJE
-  #     - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-  #     - NEXT_PUBLIC_GOTRUE_URL=http://localhost:9999
-  #     - NEXT_PUBLIC_REALTIME_URL=ws://localhost:8003
+  #     - NEXT_PUBLIC_BACKEND_URL=http://localhost:15013
+  #     - NEXT_PUBLIC_GOTRUE_URL=http://localhost:15002
+  #     - NEXT_PUBLIC_REALTIME_URL=ws://localhost:15010
   #   networks:
   #     - suna-network
   #   depends_on:

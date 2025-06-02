@@ -49,7 +49,7 @@ class Config:
     JWT_EXPIRE_HOURS = int(os.getenv('JWT_EXPIRE_HOURS', 24))
     
     # Redis 配置
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:15015')
     REDIS_PREFIX = os.getenv('REDIS_PREFIX', 'suna:realtime')
     
     # WebSocket 配置
@@ -59,7 +59,7 @@ class Config:
     CONNECTION_TIMEOUT = int(os.getenv('CONNECTION_TIMEOUT', 300))  # 5分钟
     
     # 安全配置
-    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
+    ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:15014,http://localhost:15013').split(',')
     
     # 消息持久化配置
     MESSAGE_RETENTION_DAYS = int(os.getenv('MESSAGE_RETENTION_DAYS', 7))
